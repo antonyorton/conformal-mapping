@@ -56,14 +56,11 @@ otherwise an uncaught error will result)"
 0 - 9im,
 1 -8im,
 0.5 - 8im,
--0.5 - 8.5im,
 1 - 7im,
--1.5 -6im,
--3 -9.5im
+-1 -7.5im,
+-1.5 -7im,
+-2 -9.5im
 ]
-
-# ╔═╡ 651d8c6d-984a-4c59-85ee-ccedddcca0dd
-
 
 # ╔═╡ cff0095e-e5e0-4fe3-9c6a-712580947027
 plot(real(ω),imag(ω),aspect_ratio=1)
@@ -157,6 +154,7 @@ md"The function inside the integral of the Schwarz Christoffel mapping is
  - ``g(z) = \prod_1^n(1 - \frac{z}{z_k})^{\alpha_k - 1}``"
 
 # ╔═╡ 0579ffb6-f198-48dc-a43a-3bedbc14cc64
+"Function to generate the part inside the integral of the SC mapping"
 function g(z; zp = [],α = [])
 	result = 1
 	for i in eachindex(zp)
@@ -184,7 +182,7 @@ w_test = round.( f_initial.(zₚ .+ 1e-15, zp = zₚ, α = α),digits = 2 )
 md"### Preservation of angles"
 
 # ╔═╡ 45aa4074-7894-478c-9443-8cfed7116734
-md"If this is then compared to our original polygon 𝚪 it appears, by visual inspection, that the angles at the vertices are preserved."
+md"If this is then compared to our original polygon 𝚪 it appears, by visual inspection, that for basic polygons, the angles at the vertices are preserved."
 
 # ╔═╡ 733ed60b-16fa-4342-aed9-932d4ed9fce2
 md"Original polygon 𝚪"
@@ -232,6 +230,7 @@ md"## The parameter problem
 
 # ╔═╡ eb63c308-1488-4b73-ab47-95a72a921629
 md"We currently have agreement for the angles, however the side lengths do not match.\
+\
 To determine the zₖ, we can set up the system:\
 
  - ``\Large\frac{∣ \int_{zj}^{zj+1}g(z)dz  ∣}{∣ \int_{z1}^{z2} g(z)  ∣} = \frac{∣ ωⱼ+₁  -   ωⱼ  ∣}{∣ ω₂ - ω₁  ∣}``
@@ -288,7 +287,7 @@ end
 md"##### Calculating the ϕₖ"
 
 # ╔═╡ c65267cc-5785-4dd1-8116-3fc7d6f37162
-md"We define a function which:
+md"We now define a function which:
  - gets θ from zₚ
  - sets θ₀ = 0  (convention), then;
  - calculates ``\normalsize ϕₖ = log(\frac{θₖ   -   θₖ -₁ }{θₖ +₁   -   θₖ })`` for k = 1, 2, ..., n-3
@@ -311,7 +310,7 @@ md"And now, we can also define the inverse function"
 
 # ╔═╡ d31aea89-548f-41e8-adf0-3609acabf3a8
 function ϕinv(m,ϕinput)
-	p = OffsetArray(zeros(length(ϕinput)+1),0:length(ϕinput)) #allow zero index in this array
+	p = OffsetArray(zeros(length(ϕinput)+1),0:length(ϕinput)) #use OffsetArray to allow for zero indexing in this array
 	p[0] = 1
 	for k in (1:length(ϕinput))
 		p[k] = prod([exp(-ϕinput[j]) for j in (1:k)])
@@ -364,13 +363,12 @@ From this system we can create an objective function to minimise."
 md"
 -----------------------------------------------
 ##### NOTE: The QuadGK integral is returning NaN for rtol > 1e-3
-It was found to not work when used without Gauss-Jacobi integration due to
-poles around the unit disc
+At this juncture, one finds that we need to use Gauss-Jacobi integration due to poles around the unit disc
 
 --------------"
 
 # ╔═╡ 0ca7d120-88a6-4181-b9ae-f5fdf0a361fe
-md"The process seems like it should be:\
+md"The process of solving the unconstrained system seems like it should be:\
  
 - Given ``ϕ = [ϕ₁, ϕ₂, ..., ϕ_{n-3}]``
 - Get the zₚ = [z₁, z₂, ..., zₙ]
@@ -388,21 +386,15 @@ md"First, we define a function to carry out the integrations\
  - scInt(a, b; zp = [ ],α = [ ]) = ``\int_{a}^{b}g(z)dz``
 "
 
-# ╔═╡ 5c1338d8-3569-454f-9b9f-a0d4eae5a5d2
-md"OLD (QuadGK only) VERSION: It seems that we need to set a low *( rtol )* here so that the integrand does not return NaN even for simple polygons"
-
-# ╔═╡ bcae1486-f9e6-4e41-b44f-5bb315b44c2f
-scInt_old(a, b; zp = [],α = []) = quadgk(s -> g(s, zp = zp, α = α), a, b, rtol=1e-3)[1]
-
 # ╔═╡ 4a81f972-22a8-41f5-b37e-69b9b794c412
 md"### Custom Gauss-Jacobi integration
 -------------------------------------"
 
 # ╔═╡ c1014b7b-a4b0-48b4-9f7c-fa61b0be4266
-md"Here we follow the algorithm described in *Schwarz Christoffel Mapping* by Driscoll and Trefethen (2005)."
+md"Here we follow the algorithm described in *Schwarz Christoffel Mapping* by Driscoll and Trefethen (2005). As mentioned above, the use of basic QuadGK integration does not work due to poles."
 
 # ╔═╡ a36fde20-d664-423e-bd5f-6933275a4c3b
-md"First, a function to calculate the distance from the left endpoint of integration to the nearest pole.
+md"First, we define a function to calculate the distance from the left endpoint of integration to the nearest pole.
 "
 
 # ╔═╡ 70eb470d-45ba-44e6-a8b7-e93e600c2bb2
@@ -460,14 +452,14 @@ md"which can be found from the **FastGaussQuadrature.jl** package via the functi
 "
 
 # ╔═╡ 98d72531-67c6-41c6-83b8-3117621c74eb
-md"We can now solve the Schwarz Christoffel integral on [a,b] where or a, b or both are poles"
+md"We can now solve the Schwarz Christoffel integral on [a,b] where or a, b or both are poles via considering the four possible cases below."
 
 # ╔═╡ 32242b77-8a07-42bf-b223-30a33b149cdb
 md"
 **Case 1:** a is a pole and b is not a pole
- - Solve via one sided Gauss-Jacobi
+ - Solve via one sided Gauss-Jacobi quadrature
 **Case 2:** a is a pole and b is a pole
- - Split into two integrals and solve each via one sided Gauss-Jacobi
+ - Split into two integrals and solve each via one sided Gauss-Jacobi quadrature
 **Case 3:** a is not a pole and b is a pole
  - Take the negative of the one sided Gauss-Jacobi integral from b to a
 **Case 4:** a is not a pole and b is not a pole
@@ -476,7 +468,8 @@ md"
 
 # ╔═╡ 77681078-2e27-4df6-9e03-3eb1dbfe34b7
 md"-------------------
-The above solution works for most polygons, however it is still possible to find problematic ones on which it fails.
+The above solution works for most polygons, however it is still possible to find problematic ones on which it fails.\
+\
 This is addressed by following Driscoll and Trefethen and using:
 
  - The **One half rule**:
@@ -591,7 +584,7 @@ end
 md"##### Objective function"
 
 # ╔═╡ 4043bfb9-1c55-4e8b-9263-a8e166977338
-md"We define a function to calculate our objective function:\
+md"We now define our objective function:\
 
 - The objective function is taken to be the dot product f . f"
 
@@ -616,10 +609,7 @@ md"------------
 "
 
 # ╔═╡ 24854f93-1e67-4985-9acc-d47f337e981f
-md"Run the optimiser to minimise the objective function:"
-
-# ╔═╡ d0d9f11a-00a1-44d6-8fca-29349ef624e7
-ϕ
+md"We use *optimise(f, y₀, method)* from Optim.jl to minimise the objective function:"
 
 # ╔═╡ dd3e04b3-ffd2-4206-866d-0e833758ac90
 ϕoptimiser = optimize(objective_fn, ϕ, LBFGS())
@@ -654,12 +644,6 @@ end
 
 # ╔═╡ a5145dd4-5820-4bcf-bda1-a50d514be780
 md"We define new Schwarz Christoffel mapping with the optimised prevertices zₚoptim"
-
-# ╔═╡ f26c56d4-7724-4031-86b7-92bc9ed4209d
-# ╠═╡ disabled = true
-#=╠═╡
-f₁old = (z; zp = zₚoptim,α = α) = c₁ .+ c₂ .* quadgk(s -> g(s, zp = zp, α = α),0,z)[1]
-  ╠═╡ =#
 
 # ╔═╡ a8764152-0928-40d5-b8d4-24ccc708e34e
 f₁(z; zp = zₚoptim,α = α) = c₁ .+ c₂ .* scInt(0, z, zp = zₚoptim, α = α)
@@ -710,6 +694,9 @@ md"Our transformation becomes:"
 # ╔═╡ 7a7e1aeb-17d7-454a-a936-8a8e99b6ad7f
 f(z; zp = zₚoptim,α = α) = d₁ .+ d₂ .* scInt(0, z , zp = zₚoptim, α = α)
 
+# ╔═╡ ac647784-b3cb-4982-9fe8-6e7b590e7f1d
+md"A view of the resulting polygon (purple) on top of the target polygon (blue):"
+
 # ╔═╡ ffaa0d15-4ddd-4705-97c8-24607cf37223
 begin
 	plot(real(ω), imag(ω), aspect_ratio = 1)
@@ -727,6 +714,9 @@ circums = [[r*exp(1im*θ) for θ in (0:pi/24:2pi)] for r in (0:.1:1.0)]
 # ╔═╡ e19057b6-bfb8-4572-8c23-c7b3fc5b6b30
 rays = [[r*exp(1im*θ) for r in (0.1:.1:1) ] for θ in (0:pi/6:2pi)]
 
+# ╔═╡ f8420e08-9350-4c28-896f-13d32f2fef4c
+md"The input domain (unit disc)"
+
 # ╔═╡ ad5d22fd-d1c8-4a39-805c-73501338c1cb
 begin
 	plot(real(circums[1]),imag(circums[1]),aspect_ratio = 1,color="red",legend=false)
@@ -738,6 +728,9 @@ begin
 	end
 	plot!(real(rays[end]),imag(rays[end]),aspect_ratio = 1,color="blue")
 end
+
+# ╔═╡ 1c9e36d9-f606-4ad0-8b06-683c7d309658
+md"The image of the unit disc under the mapping"
 
 # ╔═╡ 56cb5f0c-236a-4306-b9ab-287c87a0d9fc
 begin
@@ -2097,7 +2090,6 @@ version = "1.4.1+1"
 # ╟─8c081b77-b7b9-40d6-8d82-65d8c3400983
 # ╟─e6019689-be08-4f9a-99e4-ecf22597c94f
 # ╠═79cdb5aa-fd94-4f8f-a875-a503a9a3e68e
-# ╠═651d8c6d-984a-4c59-85ee-ccedddcca0dd
 # ╠═cff0095e-e5e0-4fe3-9c6a-712580947027
 # ╟─c8d68a5d-fc75-4fbb-ad59-e2899433fc16
 # ╟─c3de0463-fc9d-44ac-a2c8-7db75833b88f
@@ -2108,7 +2100,7 @@ version = "1.4.1+1"
 # ╟─273fd153-1067-4129-b958-7f2f055efb69
 # ╟─c2cd2150-b992-447f-9f3c-b6a0cc1e0cc0
 # ╟─e274a108-4a98-4c1c-9c4d-f4528c249dd6
-# ╠═fb7ea691-b929-4eec-9dd7-e397e7ba389f
+# ╟─fb7ea691-b929-4eec-9dd7-e397e7ba389f
 # ╟─34ff17bb-ad59-4eb6-9626-982746b27373
 # ╟─fe776a4b-a52d-4513-a094-dcd687e7f819
 # ╠═483a1109-d21e-487c-a789-2bf39359a36d
@@ -2116,18 +2108,18 @@ version = "1.4.1+1"
 # ╟─dc3ed40a-f533-4785-a6a9-297627f805e2
 # ╟─44779075-c511-4c85-a0a7-9779384ec987
 # ╟─8e221bd1-7e4a-4848-96f7-c42d53a4d042
-# ╠═0579ffb6-f198-48dc-a43a-3bedbc14cc64
+# ╟─0579ffb6-f198-48dc-a43a-3bedbc14cc64
 # ╟─3e05965e-c81c-4a43-a483-268df342e41f
 # ╠═046788e0-9657-4680-a102-accfee7cdc59
 # ╟─07084383-03c8-431f-969a-b1c04ae8b4bd
 # ╠═134da19c-5594-4b35-a656-a4dd9d5a092c
 # ╟─bf54a3be-66c2-459b-99b7-49b846d5f9a7
 # ╟─45aa4074-7894-478c-9443-8cfed7116734
-# ╠═733ed60b-16fa-4342-aed9-932d4ed9fce2
-# ╠═6c3ad235-9cb0-4443-9bf2-1bc2107f8614
+# ╟─733ed60b-16fa-4342-aed9-932d4ed9fce2
+# ╟─6c3ad235-9cb0-4443-9bf2-1bc2107f8614
 # ╟─6cc03693-6c95-4c7e-b776-64e478c1aa17
 # ╟─9c902afa-e76c-4090-8507-03b28e5f67dc
-# ╠═9c76999d-af47-4956-9490-4c1bf9b25a91
+# ╟─9c76999d-af47-4956-9490-4c1bf9b25a91
 # ╟─e061d0b7-3ae0-43e2-a83b-a59dde05d377
 # ╟─84e44917-3eaf-425d-9518-3c48a6c0721a
 # ╟─d66e6cbb-6d7b-40da-982c-a707560674cc
@@ -2138,28 +2130,26 @@ version = "1.4.1+1"
 # ╟─3478b2e0-d01e-4e6f-a014-aa7f2f7b26d9
 # ╟─8b18511f-5a91-4d50-a0db-46c921b7ad43
 # ╟─fabf2cff-1acb-41cf-a699-06c85ddc1a88
-# ╟─9ad962d3-2c14-418f-b9a7-9c9cc93f2f8f
+# ╠═9ad962d3-2c14-418f-b9a7-9c9cc93f2f8f
 # ╟─495ff8bc-6314-4d85-b284-80e82b4a084e
 # ╟─fcadd3c1-3d6e-4e70-903b-c1a8d01c8e32
 # ╟─c65267cc-5785-4dd1-8116-3fc7d6f37162
-# ╟─c0ddb8d4-1a2f-4753-acc4-8ff76e452972
+# ╠═c0ddb8d4-1a2f-4753-acc4-8ff76e452972
 # ╟─8ededd01-1507-4cb6-a3de-c17c60d56ea4
 # ╟─cca6dc55-72b3-472d-8f5f-159cd5a90cfa
-# ╟─d31aea89-548f-41e8-adf0-3609acabf3a8
+# ╠═d31aea89-548f-41e8-adf0-3609acabf3a8
 # ╟─f188bd86-a710-4834-9c47-d684d3761403
 # ╟─0341676a-a47c-45d1-a8b9-4f3be393b794
 # ╟─1f39bda6-906a-4fa5-851d-1ad668e925cc
 # ╟─601f4aa8-dae4-460a-85df-97d1540b9901
 # ╟─8c94b93f-7bef-4c40-bbab-dbf41e295f0a
-# ╟─547c20ce-3617-4a3b-a7eb-a3200e22dfbf
+# ╠═547c20ce-3617-4a3b-a7eb-a3200e22dfbf
 # ╟─dda38eef-f212-424f-aabd-eb128a085baa
 # ╟─b4e23ea2-44db-4e43-82e8-518b5833530a
 # ╟─5427146e-d669-47ff-943e-26f80e7990bc
 # ╟─acfca3eb-f0de-4095-9908-80d8b204c121
 # ╟─0ca7d120-88a6-4181-b9ae-f5fdf0a361fe
 # ╟─97e60c74-850f-4ff8-b27a-890af98a9c47
-# ╟─5c1338d8-3569-454f-9b9f-a0d4eae5a5d2
-# ╠═bcae1486-f9e6-4e41-b44f-5bb315b44c2f
 # ╟─4a81f972-22a8-41f5-b37e-69b9b794c412
 # ╟─c1014b7b-a4b0-48b4-9f7c-fa61b0be4266
 # ╟─a36fde20-d664-423e-bd5f-6933275a4c3b
@@ -2183,10 +2173,9 @@ version = "1.4.1+1"
 # ╟─61f564f2-1cc4-4373-b87e-6c21dcc91b78
 # ╟─5f2826a2-6479-4d79-84b7-a9f171162d97
 # ╟─24854f93-1e67-4985-9acc-d47f337e981f
-# ╠═d0d9f11a-00a1-44d6-8fca-29349ef624e7
 # ╠═dd3e04b3-ffd2-4206-866d-0e833758ac90
 # ╟─1c5dc7e2-3f35-4ad0-ae0c-df3e88dc9e6b
-# ╟─b23cf357-1c1c-432a-ba0d-3d417c14411e
+# ╠═b23cf357-1c1c-432a-ba0d-3d417c14411e
 # ╟─6fe64174-f0d6-46f5-b42b-74ab9d185825
 # ╠═e55ce25e-3819-4fe1-8576-1d0d05de76ed
 # ╠═18c2bfb7-808f-48c8-bb19-efde1b6e589b
@@ -2194,7 +2183,6 @@ version = "1.4.1+1"
 # ╠═9369177c-9a47-4cd6-a164-3a4eb876df7f
 # ╠═e7cc40c0-69e9-449c-a7de-60ea120bf437
 # ╟─a5145dd4-5820-4bcf-bda1-a50d514be780
-# ╠═f26c56d4-7724-4031-86b7-92bc9ed4209d
 # ╠═a8764152-0928-40d5-b8d4-24ccc708e34e
 # ╟─ba93062f-c475-4bc4-a907-d315d4d7d461
 # ╠═4cdf0eef-4d3f-4ac6-ae66-651dcc03c616
@@ -2204,11 +2192,14 @@ version = "1.4.1+1"
 # ╟─142d592d-7a25-4176-9de2-4f778a0ebc7f
 # ╟─c767e762-d325-4b12-84c2-9f9b0ad58745
 # ╠═7a7e1aeb-17d7-454a-a936-8a8e99b6ad7f
+# ╟─ac647784-b3cb-4982-9fe8-6e7b590e7f1d
 # ╟─ffaa0d15-4ddd-4705-97c8-24607cf37223
 # ╟─88892a80-07e4-4b50-ab01-caf745371cfd
 # ╠═64cc3aa5-65f3-4f2f-a3b9-adfad975c15b
 # ╠═e19057b6-bfb8-4572-8c23-c7b3fc5b6b30
-# ╠═ad5d22fd-d1c8-4a39-805c-73501338c1cb
-# ╠═56cb5f0c-236a-4306-b9ab-287c87a0d9fc
+# ╟─f8420e08-9350-4c28-896f-13d32f2fef4c
+# ╟─ad5d22fd-d1c8-4a39-805c-73501338c1cb
+# ╟─1c9e36d9-f606-4ad0-8b06-683c7d309658
+# ╟─56cb5f0c-236a-4306-b9ab-287c87a0d9fc
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
